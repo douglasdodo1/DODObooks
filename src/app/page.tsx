@@ -6,7 +6,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -14,7 +13,7 @@ import {
 } from "@/components/ui/pagination";
 import { BookDTO } from "@/dtos/book-dto";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, BookOpen, Section } from "lucide-react";
+import { AlertCircle, BookOpen, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function Home() {
@@ -26,8 +25,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["books", "mystery", currentPage, limit],
-    queryFn: () => fetch(`/api/books?page=${currentPage}&limit=${limit}`).then((r) => r.json()),
+    queryKey: ["books", "mystery", currentPage, limit, searchQuery],
+    queryFn: () => fetch(`/api/books?page=${currentPage}&limit=${limit}&q=${searchQuery}`).then((r) => r.json()),
   });
 
   const [totalResults, setTotalResults] = useState<number>(0);
@@ -37,7 +36,12 @@ export default function Home() {
       setTotalResults(data.docs?.length || 0);
       setTotalPages(Math.ceil(data.numFound / limit));
     }
-  }, [data, totalResults]);
+
+    if (searchQuery.trim() !== "") {
+      setCurrentPage(1);
+      setTotalPages(Math.ceil(data?.numFound / limit) || 1);
+    }
+  }, [data, searchQuery, totalResults]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -123,7 +127,7 @@ export default function Home() {
                 </PaginationLink>
               </PaginationItem>
 
-              {currentPage >= 1 && currentPage < 3 && (
+              {currentPage >= 1 && currentPage < 3 && totalPages > 3 && (
                 <>
                   <PaginationItem>
                     <PaginationLink
@@ -154,7 +158,7 @@ export default function Home() {
                 </>
               )}
 
-              {currentPage >= 3 && (
+              {currentPage >= 3 && totalPages > 3 && (
                 <>
                   <PaginationItem>
                     <PaginationLink
