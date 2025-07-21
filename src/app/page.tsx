@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/pagination";
 import { BookDTO } from "@/dtos/book-dto";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, BookOpen, Search } from "lucide-react";
+import { AlertCircle, BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function Home() {
