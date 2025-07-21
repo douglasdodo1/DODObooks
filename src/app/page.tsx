@@ -1,4 +1,5 @@
 "use client";
+
 import { BookCard } from "@/components/book-card";
 import { BookSkeletonGrid } from "@/components/book-skeleton";
 import { Navbar } from "@/components/navbar";
@@ -25,6 +26,9 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [openBookModal, setOpenBookModal] = useState<boolean>(false);
   const [selectedBook, setSelectedBook] = useState<BookDTO | null>(null);
+  const [favorites, setFavorites] = useState<BookDTO[]>([]);
+  const [isFavoriteView, setIsFavoriteView] = useState<boolean>(false);
+
   const [index, setIndex] = useState<number>(-1);
 
   const { data, isLoading, error } = useQuery({
@@ -34,9 +38,26 @@ export default function Home() {
 
   const [totalResults, setTotalResults] = useState<number>(0);
 
+  const loadFavorites = () => {
+    const storedFavorites = Object.keys(localStorage)
+      .filter((key) => key.startsWith("favorite-"))
+      .map((key) => JSON.parse(localStorage.getItem(key) || "{}") as BookDTO);
+    setFavorites(storedFavorites);
+  };
+
+  const toggleFavorite = (book: BookDTO) => {
+    const favKey = `favorite-${book.key}`;
+    if (localStorage.getItem(favKey)) {
+      localStorage.removeItem(favKey);
+    } else {
+      localStorage.setItem(favKey, JSON.stringify(book));
+    }
+    loadFavorites();
+  };
+
   useEffect(() => {
     if (data?.docs) {
-      setTotalResults(data.docs?.length || 0);
+      setTotalResults(data.docs.length || 0);
       setTotalPages(Math.ceil(data.numFound / limit));
     }
 
@@ -44,7 +65,18 @@ export default function Home() {
       setCurrentPage(1);
       setTotalPages(Math.ceil(data?.numFound / limit) || 1);
     }
-  }, [data, searchQuery]);
+
+    loadFavorites();
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key?.startsWith("favorite-") || e.key === null) {
+        loadFavorites();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [data, searchQuery, limit]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -52,29 +84,41 @@ export default function Home() {
 
   function handleBookClick(book: BookDTO) {
     setSelectedBook(book);
-    const index = data?.docs.indexOf(book);
-    console.log(`Book index: ${index}`);
+    const index = data?.docs.indexOf(book) ?? -1;
     setIndex(index);
     setOpenBookModal(true);
   }
 
   return (
-    <div className="min-h-screen  bg-gray-50">
-      <Navbar searchQuery={searchQuery} handleSearch={handleSearch} />
+    <div className="min-h-screen bg-gray-50">
+      <Navbar
+        searchQuery={searchQuery}
+        handleSearch={handleSearch}
+        setIsFavorite={setIsFavoriteView}
+        isFavorite={isFavoriteView}
+        setCurrentPage={setCurrentPage}
+      />
       <main className="container mx-auto px-4 py-8">
         {!isLoading && !error && (
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
               <h2 className="text-xl font-bold text-gray-800">
-                {searchQuery.trim() ? `Resultados para "${searchQuery}"` : "Livros em Destaque"}
+                {searchQuery.trim()
+                  ? `Resultados para "${searchQuery}"`
+                  : isFavoriteView
+                  ? "Meus Favoritos"
+                  : "Livros em Destaque"}
               </h2>
             </div>
             <p className="text-gray-600 ml-4">
-              {totalResults > 0 && `${totalResults.toLocaleString()} livros encontrados`}
+              {isFavoriteView
+                ? `${favorites.length.toLocaleString()} livros favoritos`
+                : totalResults > 0 && `${totalResults.toLocaleString()} livros encontrados`}
             </p>
           </div>
         )}
+
         {error && (
           <Alert variant="destructive" className="mb-8 border-red-200 bg-gradient-to-r from-red-50 to-pink-50">
             <AlertCircle className="h-5 w-5" />
@@ -86,26 +130,51 @@ export default function Home() {
 
         {isLoading && <BookSkeletonGrid />}
 
-        {!isLoading && !error && data.docs.length === 0 && (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <BookOpen className="w-12 h-12 text-blue-400" />
+        {!isLoading &&
+          !error &&
+          ((isFavoriteView && favorites.length === 0) || (!isFavoriteView && data?.docs.length === 0)) && (
+            <div className="text-center py-16">
+              <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <BookOpen className="w-12 h-12 text-blue-400" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-3">
+                {isFavoriteView ? "Nenhum livro favorito encontrado" : "Nenhum livro encontrado"}
+              </h3>
+              <p className="text-gray-600 max-w-md mx-auto">
+                {isFavoriteView
+                  ? "Adicione livros aos favoritos para visualizá-los aqui."
+                  : "Tente pesquisar com termos diferentes ou verifique a ortografia. Que tal explorar nossa coleção em destaque?"}
+              </p>
             </div>
-            <h3 className="text-2xl font-bold text-gray-800 mb-3">Nenhum livro encontrado</h3>
-            <p className="text-gray-600 max-w-md mx-auto">
-              Tente pesquisar com termos diferentes ou verifique a ortografia. Que tal explorar nossa coleção em
-              destaque?
-            </p>
-          </div>
-        )}
+          )}
 
-        {!isLoading && !error && data.docs.length > 0 && (
+        {!isLoading && !error && (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {data.docs.map((book: BookDTO) => (
-                <BookCard key={book.key} book={book} onClick={() => handleBookClick(book)} />
-              ))}
-            </div>
+            {isFavoriteView ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                {favorites.map((book) => (
+                  <BookCard
+                    key={book.key}
+                    book={book}
+                    onClick={() => handleBookClick(book)}
+                    isFavorite={true}
+                    toggleFavorite={() => toggleFavorite(book)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                {data.docs.map((book: BookDTO) => (
+                  <BookCard
+                    key={book.key}
+                    book={book}
+                    onClick={() => handleBookClick(book)}
+                    isFavorite={favorites.some((fav) => fav.key === book.key)}
+                    toggleFavorite={() => toggleFavorite(book)}
+                  />
+                ))}
+              </div>
+            )}
           </>
         )}
 
@@ -205,6 +274,7 @@ export default function Home() {
             </PaginationContent>
           </Pagination>
         </div>
+
         <BookModal book={data?.docs[index] || null} open={openBookModal} onOpenChange={setOpenBookModal} />
       </main>
     </div>
