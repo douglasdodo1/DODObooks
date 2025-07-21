@@ -15,14 +15,17 @@ import { BookDTO } from "@/dtos/book-dto";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
+import { BookModal } from "./modals/book-modal";
 
 export default function Home() {
   const limit = 20;
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
-
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [openBookModal, setOpenBookModal] = useState<boolean>(false);
+  const [selectedBook, setSelectedBook] = useState<BookDTO | null>(null);
+  const [index, setIndex] = useState<number>(-1);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["books", "mystery", currentPage, limit, searchQuery],
@@ -41,14 +44,18 @@ export default function Home() {
       setCurrentPage(1);
       setTotalPages(Math.ceil(data?.numFound / limit) || 1);
     }
-  }, [data, searchQuery, totalResults]);
+  }, [data, searchQuery]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
   };
 
   function handleBookClick(book: BookDTO) {
-    throw new Error("Function not implemented.");
+    setSelectedBook(book);
+    const index = data?.docs.indexOf(book);
+    console.log(`Book index: ${index}`);
+    setIndex(index);
+    setOpenBookModal(true);
   }
 
   return (
@@ -198,6 +205,7 @@ export default function Home() {
             </PaginationContent>
           </Pagination>
         </div>
+        <BookModal book={data?.docs[index] || null} open={openBookModal} onOpenChange={setOpenBookModal} />
       </main>
     </div>
   );
