@@ -17,6 +17,8 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BookModal } from "./modals/book-modal";
+import { CategoryFilter } from "@/components/category-filter";
+import { Category } from "@/data/categories";
 
 export default function Home() {
   const limit = 20;
@@ -28,12 +30,16 @@ export default function Home() {
   const [selectedBook, setSelectedBook] = useState<BookDTO | null>(null);
   const [favorites, setFavorites] = useState<BookDTO[]>([]);
   const [isFavoriteView, setIsFavoriteView] = useState<boolean>(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   const [index, setIndex] = useState<number>(-1);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["books", "mystery", currentPage, limit, searchQuery],
-    queryFn: () => fetch(`/api/books?page=${currentPage}&limit=${limit}&q=${searchQuery}`).then((r) => r.json()),
+    queryKey: ["books", selectedCategory, currentPage, limit, searchQuery],
+    queryFn: () =>
+      fetch(`/api/books?page=${currentPage}&limit=${limit}&q=${searchQuery}&category=${selectedCategory}`).then((r) =>
+        r.json()
+      ),
   });
 
   const [totalResults, setTotalResults] = useState<number>(0);
@@ -82,6 +88,11 @@ export default function Home() {
     setSearchQuery(query);
   };
 
+  const handleCategoryChange = (category: Category) => {
+    setSelectedCategory(category.id);
+    setCurrentPage(1);
+  };
+
   function handleBookClick(book: BookDTO) {
     setSelectedBook(book);
     const index = data?.docs.indexOf(book) ?? -1;
@@ -99,24 +110,18 @@ export default function Home() {
         setCurrentPage={setCurrentPage}
       />
       <main className="container mx-auto px-4 py-8">
-        {!isLoading && !error && (
+        {!isLoading && !error && isFavoriteView && (
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
-              <h2 className="text-xl font-bold text-gray-800">
-                {searchQuery.trim()
-                  ? `Resultados para "${searchQuery}"`
-                  : isFavoriteView
-                  ? "Meus Favoritos"
-                  : "Livros em Destaque"}
-              </h2>
+              <h2 className="text-xl font-bold text-gray-800">Meus Favoritos</h2>
             </div>
-            <p className="text-gray-600 ml-4">
-              {isFavoriteView
-                ? `${favorites.length.toLocaleString()} livros favoritos`
-                : totalResults > 0 && `${totalResults.toLocaleString()} livros encontrados`}
-            </p>
+            <p className="text-gray-600 ml-4">{favorites.length.toLocaleString()} livros favoritos</p>
           </div>
+        )}
+
+        {!isLoading && !error && !isFavoriteView && (
+          <CategoryFilter selectedCategory={selectedCategory} onCategoryChange={handleCategoryChange} />
         )}
 
         {error && (
@@ -178,7 +183,7 @@ export default function Home() {
           </>
         )}
 
-        <div className="absolute inset-x-0 mt-8 flex justify-center">
+        <div className="fixed bottom-0 inset-x-0 mt-8 flex justify-center">
           <Pagination className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-md px-4 py-2 space-x-1">
             <PaginationContent className="flex items-center gap-1">
               <PaginationItem>
@@ -204,7 +209,7 @@ export default function Home() {
               </PaginationItem>
 
               {currentPage >= 1 && currentPage < 3 && totalPages > 3 && (
-                <>
+                <div className="flex flex-row">
                   <PaginationItem>
                     <PaginationLink
                       href="#"
@@ -231,11 +236,11 @@ export default function Home() {
                       3
                     </PaginationLink>
                   </PaginationItem>
-                </>
+                </div>
               )}
 
               {currentPage >= 3 && totalPages > 3 && (
-                <>
+                <div className="flex flex-row">
                   <PaginationItem>
                     <PaginationLink
                       href="#"
@@ -261,7 +266,7 @@ export default function Home() {
                       {currentPage + 1}
                     </PaginationLink>
                   </PaginationItem>
-                </>
+                </div>
               )}
 
               <PaginationItem>

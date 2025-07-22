@@ -19,9 +19,9 @@ interface BookModalProps {
 export function BookModal({ book, open, onOpenChange }: BookModalProps) {
   const [bookDetails, setBookDetails] = useState<EditionDTO | null>(null);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["bookDetails", book?.key],
-    queryFn: () => fetch(`/api/bookdetail?key=${book?.key}`).then((r) => r.json()), // Fixed the misplaced comma
+    queryFn: () => fetch(`/api/bookdetail?key=${book?.key}`).then((r) => r.json()),
     enabled: !!book?.key,
   });
 
